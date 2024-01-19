@@ -1,0 +1,6 @@
+venv/
+In_Breast_2012/
+primera_base.db
+saved_images/
+sort.py
+__pycache__/
