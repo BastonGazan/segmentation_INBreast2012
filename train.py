@@ -12,18 +12,19 @@ from utils import(
     check_accuracy,
     save_predictions_as_imgs,
 )
+from sklearn.preprocessing import StandardScaler
 
 # Hiperparametros
 
 LEARNING_RATE = 1e-4
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-BATCH_SIZE = 16
+BATCH_SIZE = 1
 NUM_EPOCHS = 3
 NUM_WORKERS = 2
 IMAGE_HEIGHT = 160
 IMAGE_WIDTH = 240
 PIN_MEMORY = True
-LOAD_MODEL = True
+LOAD_MODEL = False
 TRAIN_IMG_DIR = r'In_Breast_2012\AllDICOMs\train_images'
 TRAIN_MASK_DIR = r'In_Breast_2012\massMasks\train_masks'
 VAL_IMG_DIR = r'In_Breast_2012\AllDICOMs\val_images'
@@ -33,18 +34,18 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
     loop = tqdm(loader)
 
     for batch_idx, (data, targets) in enumerate(loop):
-        data = data.to(device=DEVICE)
-        targets = targets.float().unsqueeze(1).to(device=DEVICE)
-
-        with torch.cuda.amp.autocast():
-            predictions = model(data)
-            loss = loss_fn(predictions)
-
+        data = data.unsqueeze(0).to(device=DEVICE)
+        targets = targets.unsqueeze(0).float().to(device=DEVICE)
+    # forward
+        predictions = model(data)
+        loss = loss_fn(predictions)
+    # backward
         optimizer.zero_grad()
         scaler.scale(loss).backward()
         scaler.step(optimizer)
         scaler.update()
 
+    # update tqdm loop
         loop.set_postfix(loss=loss.item())
 
 def main():
@@ -75,7 +76,7 @@ def main():
         ]
     )
 
-    model = UNET(in_channels=3, out_channels=1).to(DEVICE)
+    model = UNET(in_channels=1, out_channels=1).to(device=DEVICE)
     loss_fn = nn.BCEWithLogitsLoss()
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
@@ -91,7 +92,11 @@ def main():
         PIN_MEMORY,
     )
 
-    scaler = torch.cuda.amp.GradScaler()
+    if torch.cuda.is_available():
+        scaler = torch.cuda.amp.GradScaler()
+    else:
+        scaler = StandardScaler()
+
     for epoch in range(NUM_EPOCHS):
         train_fn(train_loader, model, optimizer, loss_fn, scaler)
 

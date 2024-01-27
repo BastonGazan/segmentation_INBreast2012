@@ -4,3 +4,4 @@ primera_base.db
 saved_images/
 sort.py
 __pycache__/
+train_tensors/
