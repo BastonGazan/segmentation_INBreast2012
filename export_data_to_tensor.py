@@ -9,6 +9,7 @@ from albumentations.pytorch import ToTensorV2
 from torch.utils.data import Dataset
 from dataset import INBreastDataset
 from tqdm import tqdm
+import pickle
 
 image_dir = r'In_Breast_2012\AllDICOMs\train_images'
 mask_dir = r'In_Breast_2012\massMasks\train_masks'
@@ -31,7 +32,7 @@ def exportar_tensor(dataset, dicom_path):
 
     #Exportacion de la imagen a jpg y guardado en la carpeta final
         tensor_path = os.path.join(end_folder, os.path.basename(dicom_path).strip('.dcm')+'.pt')
-        torch.save(sample, tensor_path)
+        torch.save(sample, tensor_path, pickle_protocol=pickle.DEFAULT_PROTOCOL)
 
 for root,dirs,files in os.walk(image_dir):
     for file in tqdm(files):
