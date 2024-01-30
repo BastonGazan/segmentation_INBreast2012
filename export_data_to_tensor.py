@@ -11,14 +11,16 @@ from dataset import INBreastDataset
 from tqdm import tqdm
 import pickle
 
-image_dir = r'In_Breast_2012\AllDICOMs\train_images'
-mask_dir = r'In_Breast_2012\massMasks\train_masks'
-end_folder = 'train_tensors'
+image_dir = r'In_Breast_2012\AllDICOMs'
+mask_dir = r'In_Breast_2012\Masks'
+metadata_dir = r'In_Breast_2012\INbreast.csv'
+end_folder = 'Tensors'
 
 width, height = 240,240
 
 transformed_dataset = INBreastDataset(image_dir=image_dir,
                                 mask_dir=mask_dir,
+                                metadata_dir = metadata_dir,
                                 transform=A.Compose ([
                                     A.Resize(width, height),
                                     ToTensorV2()]))
