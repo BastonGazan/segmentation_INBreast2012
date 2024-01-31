@@ -1,12 +1,7 @@
 import os
-import cv2
-import numpy as np
-from pydicom import dcmread
-import matplotlib.pyplot as plt
 import torch
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
-from torch.utils.data import Dataset
 from dataset import INBreastDataset
 from tqdm import tqdm
 import pickle
@@ -19,22 +14,22 @@ end_folder = 'Tensors'
 width, height = 240,240
 
 transformed_dataset = INBreastDataset(image_dir=image_dir,
-                                mask_dir=mask_dir,
-                                metadata_dir = metadata_dir,
-                                transform=A.Compose ([
-                                    A.Resize(width, height),
-                                    ToTensorV2()]))
-
+                                    mask_dir=mask_dir,
+                                    metadata_dir = metadata_dir,
+                                    transform=A.Compose ([
+                                            A.Resize(width, height),
+                                            ToTensorV2()]))
 
 if not os.path.exists(end_folder):
     os.makedirs(end_folder)
 
 def exportar_tensor(dataset, dicom_path):
+    tensor_path = os.path.join(end_folder, os.path.basename(dicom_path).strip('.dcm')+'.pt')
     for i, sample in enumerate(dataset):
-
-    #Exportacion de la imagen a jpg y guardado en la carpeta final
-        tensor_path = os.path.join(end_folder, os.path.basename(dicom_path).strip('.dcm')+'.pt')
-        torch.save(sample, tensor_path, pickle_protocol=pickle.DEFAULT_PROTOCOL)
+        #Exportacion de la imagen a tensor y guardado en la carpeta final
+        if sample['ID'] == os.path.basename(dicom_path).split('_')[0]:
+            torch.save(sample, tensor_path, pickle_protocol=pickle.DEFAULT_PROTOCOL)
+            break
 
 for root,dirs,files in os.walk(image_dir):
     for file in tqdm(files):

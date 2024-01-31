@@ -28,8 +28,8 @@ class INBreastDataset(Dataset):
         img_path = os.path.join(self.image_dir, self.images[index])
         mask_path = os.path.join(self.mask_dir, self.masks[index])
         image = cv2.normalize(dcmread(img_path).pixel_array, None, alpha=0.0, beta=255.0, norm_type=cv2.NORM_MINMAX).astype(np.float32)
-        mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE).astype(np.float32)
-
+        mask = cv2.imread(mask_path, cv2.IMREAD_UNCHANGED).astype(np.float32)
+        #mask[mask > 0.0] = 1.0
 
         filename = self.masks[index].strip('_mask.jpg')
 
@@ -70,16 +70,11 @@ class INBreastDataset(Dataset):
             bbox = bbox
 
         sample = {'ID':id, 'image': image, 'mask': mask, 'Bi-Rads': bi_rads, 'ACR': acr, 'Side': side, 'View': view, 'bbox':bbox}
-    
 
         if self.transform is not None:
             augmentations = self.transform(image=image, mask=mask)
             image = augmentations['image']
             mask = augmentations['mask']
-            sample = {'ID':id, 'image': image, 'mask': mask, 'Bi-Rads': bi_rads, 'ACR': acr, 'Side': side, 'View': view, 'bbox':bbox}
-
-        
         
         return sample
-
     
