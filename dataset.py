@@ -17,9 +17,7 @@ class INBreastDataset(Dataset):
         self.masks = os.listdir(mask_dir)
 
     def __len__(self):
-        return(len(self.images))
-    
-    
+        return(len(self.images))    
     
     def __getitem__(self, index):
         if torch.is_tensor(index):
@@ -69,12 +67,11 @@ class INBreastDataset(Dataset):
         else:
             bbox = bbox
 
-        sample = {'ID':id, 'image': image, 'mask': mask, 'Bi-Rads': bi_rads, 'ACR': acr, 'Side': side, 'View': view, 'bbox':bbox}
-
         if self.transform is not None:
             augmentations = self.transform(image=image, mask=mask)
             image = augmentations['image']
             mask = augmentations['mask']
         
+        sample = {'ID':id, 'image': image, 'mask_mass': mask, 'Bi-Rads': bi_rads, 'ACR': acr, 'Side': side, 'View': view, 'bbox':bbox}
+
         return sample
-    

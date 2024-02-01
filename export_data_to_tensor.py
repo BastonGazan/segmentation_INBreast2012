@@ -11,7 +11,8 @@ mask_dir = r'In_Breast_2012\Masks'
 metadata_dir = r'In_Breast_2012\INbreast.csv'
 end_folder = 'Tensors'
 
-width, height = 240,240
+width, height = 1024,1024
+padding = 5
 
 transformed_dataset = INBreastDataset(image_dir=image_dir,
                                     mask_dir=mask_dir,
