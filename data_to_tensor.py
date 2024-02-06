@@ -9,7 +9,7 @@ import numpy as np
 
 # Parametros de transformacion de imagen
 width, height = 1024,1024
-padding = 0.05
+padding = 0.1
 interpolation_method = cv2.INTER_AREA
 
 ### ================================================== ###
@@ -23,6 +23,29 @@ end_folder = 'Tensors'
 images = os.listdir(image_dir)
 masa = os.listdir(mass_dir)
 pec_muscle = os.listdir(pec_muscle_dir)
+
+def get_size(image_file):
+    imagen = dcmread(os.path.join(image_dir, image_file)).pixel_array
+    flip = False
+    if os.path.basename(image_file).split('_')[3] == 'R':
+        imagen = cv2.flip(imagen,1)
+        flip = True
+
+    _,img_bin = cv2.threshold(imagen, 0.0,255.0,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+    cnts,hierarchy = cv2.findContours(img_bin.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    x,y,w,h = cv2.boundingRect(cnts[0])
+
+    roi_img = imagen[y:y+w+1, x:x+w+1]
+
+    print(roi_img.shape)
+
+    if flip:
+        roi_img = cv2.flip(roi_img,1)
+        flip = False
+
+
+
+    return x,y,w,h
 
 def process_images(image_file, padding):
     img_path = os.path.join(image_dir, image_file)
@@ -163,7 +186,7 @@ for dicom, masas, musculos in tqdm(zip(images,masa,pec_muscle)):
 
     sample = {'ID':metadata[0], 
               'image': image, 
-              'mask_mass': mass_mask,
+              'mass_mask': mass_mask,
               'pectoral_muscle_mask':muscle_mask, 
               'Bi-Rads': metadata[1], 
               'ACR': metadata[2], 

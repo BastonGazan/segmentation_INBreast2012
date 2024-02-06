@@ -6,3 +6,4 @@ sort.py
 __pycache__/
 train_tensors/
 Tensors/
+scripts_obsoletos/

@@ -2,12 +2,13 @@ import torch
 from torch.utils.data import Dataset
 import numpy as np
 import os
-import cv2
 
 class INBreastDataset2012(Dataset):
-    def __init__(self, dict_dir, transform=False, target_transform=False):
+    def __init__(self, dict_dir, transform=None):
         self.dict_dir = dict_dir
         self.data = os.listdir(self.dict_dir)
+        self.transform = transform
+
 
 
     def __len__(self):
@@ -15,20 +16,15 @@ class INBreastDataset2012(Dataset):
 
     def __getitem__(self, index):
         dict_path = os.path.join(self.dict_dir, self.data[index])
-        image = torch.load(dict_path)['image']
-        mass_mask = torch.load(dict_path)['mass_mask']
-        pectoral_muscle_mask = torch.load(dict_path)['pectoral_muscle_mask']
+        image = torch.load(dict_path)['image'].unsqueeze(0)
+        mass_mask = torch.load(dict_path)['mask_mass'].unsqueeze(0)
+        pectoral_muscle_mask = torch.load(dict_path)['pectoral_muscle_mask'].unsqueeze(0)
 
 
         if self.transform:
             image = self.transform(image)
             pectoral_muscle_mask = self.transform(pectoral_muscle_mask)
-
-        if self.target_transform:
             mass_mask = self.transform(mass_mask)
-        
-        sample = {'image': image, 'mass_mask':mass_mask, 'pectoral_muscle_mask':pectoral_muscle_mask}
-
             
         
-        return sample
+        return image, mass_mask
