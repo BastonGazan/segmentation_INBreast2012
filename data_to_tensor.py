@@ -24,72 +24,81 @@ images = os.listdir(image_dir)
 masa = os.listdir(mass_dir)
 pec_muscle = os.listdir(pec_muscle_dir)
 
-def get_size(image_file):
+def get_size(image_file, flip_flag):
     imagen = dcmread(os.path.join(image_dir, image_file)).pixel_array
-    flip = False
-    if os.path.basename(image_file).split('_')[3] == 'R':
+    if flip_flag:
         imagen = cv2.flip(imagen,1)
-        flip = True
 
     _,img_bin = cv2.threshold(imagen, 0.0,255.0,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
     cnts,hierarchy = cv2.findContours(img_bin.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    x,y,w,h = cv2.boundingRect(cnts[0])
-
-    roi_img = imagen[y:y+w+1, x:x+w+1]
-
-    print(roi_img.shape)
-
-    if flip:
-        roi_img = cv2.flip(roi_img,1)
-        flip = False
-
-
+    x,y,w,h = cv2.boundingRect(cnts[len(cnts)-1])
 
     return x,y,w,h
 
-def process_images(image_file, padding):
+def process_images(image_file, padding, x,y,ancho,alto,flip_flag):
     img_path = os.path.join(image_dir, image_file)
     image = dcmread(img_path).pixel_array
 
+    if flip_flag:
+        image = cv2.flip(image,1)
+        roi_img = image[y:y+alto+1, x:x+ancho+1]
+        roi_img = cv2.flip(roi_img,1)
+    else:
+        roi_img = image[y:y+alto+1, x:x+ancho+1]
+ 
     #Parametros para realizar el padding
-    borderType = cv2.BORDER_CONSTANT
-    top = int(padding * image.shape[0])  # imagen[0] = rows
-    bottom = top
-    left = int(padding * image.shape[1])  # imagen[1] = cols
-    right = left
-    image = cv2.copyMakeBorder(image, top, bottom, left, right, borderType, None, value=0.0)
-
-    image = cv2.normalize(image, None, alpha=0.0, beta=255.0, norm_type=cv2.NORM_MINMAX).astype(np.float32)
+    # borderType = cv2.BORDER_CONSTANT
+    # top = int(padding * roi_img.shape[0])  # imagen[0] = rows
+    # bottom = top
+    # left = int(padding * roi_img.shape[1])  # imagen[1] = cols
+    # right = left
+    # roi_img = cv2.copyMakeBorder(roi_img, top, bottom, left, right, borderType, None, value=0.0)
+              
+    roi_img = cv2.normalize(roi_img, None, alpha=0.0, beta=255.0, norm_type=cv2.NORM_MINMAX).astype(np.float32)
     
-    return image
+    return roi_img
 
-def process_mass_masks(mask_file, padding):
+def process_mass_masks(mask_file, padding,x,y,ancho,alto,flip_flag):
     mask_path = os.path.join(mass_dir, mask_file)
     mask = cv2.imread(mask_path, cv2.IMREAD_UNCHANGED).astype(np.float32)
 
-    #Parametros para realizar el padding
-    borderType = cv2.BORDER_CONSTANT
-    top = int(padding * image.shape[0])  # imagen[0] = rows
-    bottom = top
-    left = int(padding * image.shape[1])  # imagen[1] = cols
-    right = left
-    mask = cv2.copyMakeBorder(mask, top, bottom, left, right, borderType, None, value=0.0)
-    
-    return mask
+    if flip_flag:
+        mask = cv2.flip(mask,1)
+        roi_mask = mask[y:y+alto+1, x:x+ancho+1]
+        roi_mask = cv2.flip(roi_mask,1)
+    else:
+        roi_mask = mask[y:y+alto+1, x:x+ancho+1]
 
-def process_muscle_masks(mask_file, padding):
+    #Parametros para realizar el padding
+    # borderType = cv2.BORDER_CONSTANT
+    # top = int(padding * roi_mask.shape[0])  # imagen[0] = rows
+    # bottom = top
+    # left = int(padding * roi_mask.shape[1])  # imagen[1] = cols
+    # right = left
+    # roi_mask = cv2.copyMakeBorder(roi_mask, top, bottom, left, right, borderType, None, value=0.0)
+    
+    return roi_mask
+
+def process_muscle_masks(mask_file, padding,x,y,ancho,alto,flip_flag):
     mask_path = os.path.join(pec_muscle_dir, mask_file)
     mask = cv2.imread(mask_path, cv2.IMREAD_UNCHANGED).astype(np.float32)
     
-    #Parametros para realizar el padding
-    borderType = cv2.BORDER_CONSTANT
-    top = int(padding * image.shape[0])  # imagen[0] = rows
-    bottom = top
-    left = int(padding * image.shape[1])  # imagen[1] = cols
-    right = left
-    mask = cv2.copyMakeBorder(mask, top, bottom, left, right, borderType, None, value=0.0)
+    if flip_flag:
+        mask = cv2.flip(mask,1)
+        roi_mask = mask[y:y+alto+1, x:x+ancho+1]
+        roi_mask = cv2.flip(roi_mask,1)
+    else:
+        roi_mask = mask[y:y+alto+1, x:x+ancho+1]
     
-    return mask
+    #Parametros para realizar el padding
+    # borderType = cv2.BORDER_CONSTANT
+    # top = int(padding * roi_mask.shape[0])  # imagen[0] = rows
+    # bottom = top
+    # left = int(padding * roi_mask.shape[1])  # imagen[1] = cols
+    # right = left
+    # roi_mask = cv2.copyMakeBorder(roi_mask, top, bottom, left, right, borderType, None, value=0.0)
+
+    return roi_mask
 
 def process_metadata(metadata_dir, masa):
     for index in range(len(masa)):
@@ -173,10 +182,14 @@ if not os.path.exists(end_folder):
     os.makedirs(end_folder)
 
 for dicom, masas, musculos in tqdm(zip(images,masa,pec_muscle)):
+    flip_flag = False
+    if os.path.basename(dicom).split('_')[3] == 'R':
+        flip_flag = True
 
-    image = process_images(dicom, padding)
-    mass_mask = process_mass_masks(masas, padding)
-    muscle_mask = process_muscle_masks(musculos, padding)
+    x,y,ancho,alto = get_size(dicom,flip_flag)
+    image = process_images(dicom, padding,x,y,ancho,alto,flip_flag)
+    mass_mask = process_mass_masks(masas, padding,x,y,ancho,alto,flip_flag)
+    muscle_mask = process_muscle_masks(musculos, padding,x,y,ancho,alto,flip_flag)
     metadata = process_metadata(metadata_dir,masas)
     bbox = masks_to_yolo(mass_mask, muscle_mask)
 
