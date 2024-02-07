@@ -6,6 +6,7 @@ from pydicom import dcmread
 from tqdm import tqdm
 import pickle
 import numpy as np
+import pandas as pd
 
 # Parametros de transformacion de imagen
 width, height = 1024,1024
@@ -103,6 +104,8 @@ def process_muscle_masks(mask_file, padding,x,y,ancho,alto,flip_flag):
 def process_metadata(metadata_dir, masa):
     for index in range(len(masa)):
         filename = str(masa).strip('_mask.jpg')
+
+        patient_list = pd.read_csv(metadata_dir)
 
         with open(metadata_dir, newline='') as csvfile:
             patient_list = csv.DictReader(csvfile, delimiter=';', quotechar='|')
