@@ -10,20 +10,21 @@ import pandas as pd
 
 # Parametros de transformacion de imagen
 width, height = 1024,1024
-padding = 0.1
 interpolation_method = cv2.INTER_AREA
+clipLimit = 5
 
-### ================================================== ###
+### =====================Directorios============================= ###
 
 image_dir = r'In_Breast_2012\AllDICOMs'
 mass_dir = r'In_Breast_2012\Mass_Masks'
 pec_muscle_dir = r'In_Breast_2012\Pectoral_Muscle_Masks'
 metadata_dir = r'In_Breast_2012\INbreast.csv'
 end_folder = 'Tensors'
-
 images = os.listdir(image_dir)
 masa = os.listdir(mass_dir)
 pec_muscle = os.listdir(pec_muscle_dir)
+
+### ===================Funciones============================== ###
 
 def get_size(image_file, flip_flag):
     imagen = dcmread(os.path.join(image_dir, image_file)).pixel_array
@@ -36,7 +37,36 @@ def get_size(image_file, flip_flag):
 
     return x,y,w,h
 
-def process_images(image_file, padding, x,y,ancho,alto,flip_flag):
+def centrar_imagen(imagen):
+
+    borderType = cv2.BORDER_CONSTANT
+
+    alto, ancho = imagen.shape
+
+    if ancho > alto:
+        top = int((ancho - alto)//2)
+        bottom = top
+        left = 0 
+        right = left
+        imagen = cv2.copyMakeBorder(imagen, top, bottom, left, right, borderType, None, value=0.0)
+    elif alto > ancho:
+        top = 0
+        bottom = top
+        left = int((alto - ancho)//2)
+        right = left
+        imagen = cv2.copyMakeBorder(imagen, top, bottom, left, right, borderType, None, value=0.0)
+    else:
+        imagen=imagen
+
+    return imagen
+
+def clahe_equalization(image_file,clip):
+    clahe = cv2.createCLAHE(clipLimit=clip)
+    equ_img = clahe.apply(image_file)
+
+    return equ_img
+
+def process_images(image_file, x,y,ancho,alto,flip_flag,clip):
     img_path = os.path.join(image_dir, image_file)
     image = dcmread(img_path).pixel_array
 
@@ -46,22 +76,18 @@ def process_images(image_file, padding, x,y,ancho,alto,flip_flag):
         roi_img = cv2.flip(roi_img,1)
     else:
         roi_img = image[y:y+alto+1, x:x+ancho+1]
- 
-    #Parametros para realizar el padding
-    # borderType = cv2.BORDER_CONSTANT
-    # top = int(padding * roi_img.shape[0])  # imagen[0] = rows
-    # bottom = top
-    # left = int(padding * roi_img.shape[1])  # imagen[1] = cols
-    # right = left
-    # roi_img = cv2.copyMakeBorder(roi_img, top, bottom, left, right, borderType, None, value=0.0)
+
+    roi_img = centrar_imagen(roi_img)
               
-    roi_img = cv2.normalize(roi_img, None, alpha=0.0, beta=255.0, norm_type=cv2.NORM_MINMAX).astype(np.float32)
+    roi_img = cv2.normalize(roi_img, None, alpha=0.0, beta=255.0, norm_type=cv2.NORM_MINMAX).astype(np.uint8)
+
+    roi_img = clahe_equalization(roi_img, clip)
     
     return roi_img
 
-def process_mass_masks(mask_file, padding,x,y,ancho,alto,flip_flag):
+def process_mass_masks(mask_file,x,y,ancho,alto,flip_flag):
     mask_path = os.path.join(mass_dir, mask_file)
-    mask = cv2.imread(mask_path, cv2.IMREAD_UNCHANGED).astype(np.float32)
+    mask = cv2.imread(mask_path, cv2.IMREAD_UNCHANGED).astype(np.uint8)
 
     if flip_flag:
         mask = cv2.flip(mask,1)
@@ -70,19 +96,13 @@ def process_mass_masks(mask_file, padding,x,y,ancho,alto,flip_flag):
     else:
         roi_mask = mask[y:y+alto+1, x:x+ancho+1]
 
-    #Parametros para realizar el padding
-    # borderType = cv2.BORDER_CONSTANT
-    # top = int(padding * roi_mask.shape[0])  # imagen[0] = rows
-    # bottom = top
-    # left = int(padding * roi_mask.shape[1])  # imagen[1] = cols
-    # right = left
-    # roi_mask = cv2.copyMakeBorder(roi_mask, top, bottom, left, right, borderType, None, value=0.0)
+    roi_mask = centrar_imagen(roi_mask)
     
     return roi_mask
 
-def process_muscle_masks(mask_file, padding,x,y,ancho,alto,flip_flag):
+def process_muscle_masks(mask_file,x,y,ancho,alto,flip_flag):
     mask_path = os.path.join(pec_muscle_dir, mask_file)
-    mask = cv2.imread(mask_path, cv2.IMREAD_UNCHANGED).astype(np.float32)
+    mask = cv2.imread(mask_path, cv2.IMREAD_UNCHANGED).astype(np.uint8)
     
     if flip_flag:
         mask = cv2.flip(mask,1)
@@ -90,35 +110,23 @@ def process_muscle_masks(mask_file, padding,x,y,ancho,alto,flip_flag):
         roi_mask = cv2.flip(roi_mask,1)
     else:
         roi_mask = mask[y:y+alto+1, x:x+ancho+1]
-    
-    #Parametros para realizar el padding
-    # borderType = cv2.BORDER_CONSTANT
-    # top = int(padding * roi_mask.shape[0])  # imagen[0] = rows
-    # bottom = top
-    # left = int(padding * roi_mask.shape[1])  # imagen[1] = cols
-    # right = left
-    # roi_mask = cv2.copyMakeBorder(roi_mask, top, bottom, left, right, borderType, None, value=0.0)
+
+    roi_mask = centrar_imagen(roi_mask)
 
     return roi_mask
 
 def process_metadata(metadata_dir, masa):
-    for index in range(len(masa)):
-        filename = str(masa).strip('_mask.jpg')
+    filename = int(str(masa).strip('_mask.jpg'))
 
-        patient_list = pd.read_csv(metadata_dir)
+    patient_list = pd.read_csv(metadata_dir, sep=';')
 
-        with open(metadata_dir, newline='') as csvfile:
-            patient_list = csv.DictReader(csvfile, delimiter=';', quotechar='|')
-            for row in patient_list:
-                if row['File Name'] == filename:
-                    bi_rads = row['Bi-Rads']
-                    acr = row['ACR']
-                    side = row['Laterality']
-                    view = row['View']
-                    id = row['File Name']
+    paciente = patient_list.loc[patient_list['File Name'] == filename]
 
-                    break
-        break
+    bi_rads = paciente['Bi-Rads'].iloc[0]
+    acr = paciente['ACR'].iloc[0]
+    side = paciente['Laterality'].iloc[0]
+    view = paciente['View'].iloc[0]
+    id = paciente['File Name'].iloc[0]
 
     metadata = [id, bi_rads, acr, side, view]
 
@@ -179,7 +187,7 @@ def save_to_tensor(np_array):
 
     return np_array
 
-### =================================================== ###
+### =====================Main============================== ###
 
 if not os.path.exists(end_folder):
     os.makedirs(end_folder)
@@ -189,10 +197,10 @@ for dicom, masas, musculos in tqdm(zip(images,masa,pec_muscle)):
     if os.path.basename(dicom).split('_')[3] == 'R':
         flip_flag = True
 
-    x,y,ancho,alto = get_size(dicom,flip_flag)
-    image = process_images(dicom, padding,x,y,ancho,alto,flip_flag)
-    mass_mask = process_mass_masks(masas, padding,x,y,ancho,alto,flip_flag)
-    muscle_mask = process_muscle_masks(musculos, padding,x,y,ancho,alto,flip_flag)
+    x,y,w,h = get_size(dicom,flip_flag)
+    image = process_images(dicom,x,y,w,h,flip_flag,clipLimit)
+    mass_mask = process_mass_masks(masas,x,y,w,h,flip_flag)
+    muscle_mask = process_muscle_masks(musculos,x,y,w,h,flip_flag)
     metadata = process_metadata(metadata_dir,masas)
     bbox = masks_to_yolo(mass_mask, muscle_mask)
 
