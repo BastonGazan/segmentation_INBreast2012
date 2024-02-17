@@ -1,5 +1,4 @@
 import os
-import csv
 import torch
 import cv2
 from pydicom import dcmread
@@ -9,9 +8,9 @@ import numpy as np
 import pandas as pd
 
 # Parametros de transformacion de imagen
-width, height = 1024,1024
-interpolation_method = cv2.INTER_AREA
-clipLimit = 5
+width, height = 1024,1024 # Dimensiones de resizing 
+interpolation_method = cv2.INTER_AREA # Metodo de interpolacion para resizing
+clipLimit = 5 # Cantidad maxima de pixeles que puede haber de una intensidad
 
 ### =====================Directorios============================= ###
 
@@ -33,7 +32,7 @@ def get_size(image_file, flip_flag):
 
     _,img_bin = cv2.threshold(imagen, 0.0,255.0,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
     cnts,hierarchy = cv2.findContours(img_bin.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    x,y,w,h = cv2.boundingRect(cnts[len(cnts)-1])
+    x,y,w,h = cv2.boundingRect(cnts[-1])
 
     return x,y,w,h
 
@@ -78,11 +77,11 @@ def process_images(image_file, x,y,ancho,alto,flip_flag,clip):
         roi_img = image[y:y+alto+1, x:x+ancho+1]
 
     roi_img = centrar_imagen(roi_img)
+
+    roi_img = clahe_equalization(roi_img, clip)
               
     roi_img = cv2.normalize(roi_img, None, alpha=0.0, beta=255.0, norm_type=cv2.NORM_MINMAX).astype(np.uint8)
 
-    roi_img = clahe_equalization(roi_img, clip)
-    
     return roi_img
 
 def process_mass_masks(mask_file,x,y,ancho,alto,flip_flag):
@@ -112,16 +111,15 @@ def process_muscle_masks(mask_file,x,y,ancho,alto,flip_flag):
         roi_mask = mask[y:y+alto+1, x:x+ancho+1]
 
     roi_mask = centrar_imagen(roi_mask)
-
+    
     return roi_mask
 
 def process_metadata(metadata_dir, masa):
-    filename = int(str(masa).strip('_mask.jpg'))
 
+    filename = int(str(masa).strip('_mask.jpg'))
     patient_list = pd.read_csv(metadata_dir, sep=';')
 
     paciente = patient_list.loc[patient_list['File Name'] == filename]
-
     bi_rads = paciente['Bi-Rads'].iloc[0]
     acr = paciente['ACR'].iloc[0]
     side = paciente['Laterality'].iloc[0]
@@ -204,9 +202,9 @@ for dicom, masas, musculos in tqdm(zip(images,masa,pec_muscle)):
     metadata = process_metadata(metadata_dir,masas)
     bbox = masks_to_yolo(mass_mask, muscle_mask)
 
-    image = save_to_tensor(image)
-    mass_mask = save_to_tensor(mass_mask)
-    muscle_mask = save_to_tensor(muscle_mask)
+    # image = save_to_tensor(image)
+    mass_mask = cv2.resize(mass_mask,(width,height), interpolation=interpolation_method)
+    muscle_mask = cv2.resize(muscle_mask,(width,height), interpolation=interpolation_method)
 
     sample = {'ID':metadata[0], 
               'image': image, 

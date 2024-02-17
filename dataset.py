@@ -18,10 +18,17 @@ class INBreastDataset2012(Dataset):
         patient_dict = torch.load(dict_path)
         image = patient_dict['image'].unsqueeze(0)
         mass_mask = patient_dict['mass_mask'].unsqueeze(0)
+        mass_mask[mass_mask > 1.0] = 1.0
 
 
-        if self.transform:
-            image, mass_mask = self.transform(image, mass_mask)
+        if self.transform is not None:
+            # Concateno las imagenes por la dimension del canal (Hago una imagen de 2 canales)
+            image_and_mask = torch.cat([image, mass_mask], dim=0)
+            # Puedo pasar una sola imagen y aplicarle la misma transformacion a ambas
+            transformed = self.transform(image_and_mask)
+            # Separo los tensores
+            image = transformed[0,:, :]
+            mass_mask = transformed[1,:, :]
             
         
         return image, mass_mask
