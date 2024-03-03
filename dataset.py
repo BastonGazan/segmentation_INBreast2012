@@ -8,17 +8,17 @@ class INBreastDataset2012(Dataset):
         self.data = os.listdir(self.dict_dir)
         self.transform = transform
 
-
-
     def __len__(self):
         return len(self.data)
 
     def __getitem__(self, index):
         dict_path = os.path.join(self.dict_dir, self.data[index])
         patient_dict = torch.load(dict_path)
-        image = patient_dict['image'].unsqueeze(0)
-        mass_mask = patient_dict['mass_mask'].unsqueeze(0)
-        mass_mask[mass_mask > 1.0] = 1.0
+        image = patient_dict['image'].unsqueeze(0).float()
+        mass_mask = patient_dict['mass_mask'].unsqueeze(0).float()
+        image = image/255.0
+        mass_mask[mass_mask < 0.5] = 0.0
+        mass_mask[mass_mask >= 0.5] = 1.0
 
 
         if self.transform is not None:
@@ -29,6 +29,6 @@ class INBreastDataset2012(Dataset):
             # Separo los tensores
             image = transformed[0,:, :]
             mass_mask = transformed[1,:, :]
-            
-        
+
+
         return image, mass_mask
